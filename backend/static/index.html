@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vigilix — Quietly Watching</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <style>
+    :root {
+      --mocha-deep: #1e1510;
+      --mocha: #2b1e17;
+      --mocha-card: rgba(45, 31, 24, 0.72);
+      --gold: #e6cfa7;
+      --gold-dim: rgba(230, 207, 167, 0.55);
+      --gold-line: rgba(230, 207, 167, 0.22);
+      --amber: #c85a17;
+      --amber-glow: rgba(217, 119, 46, 0.28);
+      --danger: #b83b2b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      color: var(--gold);
+      background-color: var(--mocha-deep);
+      background-image:
+        radial-gradient(ellipse 75% 65% at 88% 8%, rgba(230, 185, 120, 0.34) 0%, rgba(200, 90, 23, 0.14) 38%, transparent 72%),
+        linear-gradient(125deg, rgba(230, 207, 167, 0.06) 0%, transparent 45%),
+        linear-gradient(180deg, #241914 0%, #19110d 100%);
+      background-attachment: fixed;
+      overflow-x: hidden;
+    }
+
+    /* Subtle editorial light rays */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: conic-gradient(
+        from 215deg at 92% 4%,
+        transparent 0deg,
+        rgba(230, 207, 167, 0.07) 14deg,
+        transparent 28deg,
+        rgba(200, 90, 23, 0.06) 42deg,
+        transparent 60deg
+      );
+      z-index: 0;
+    }
+
+    /* Top Editorial Navigation */
+    header {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 36px;
+      border-bottom: 1px solid var(--gold-line);
+      backdrop-filter: blur(10px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 1.65rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin: 0;
+    }
+
+    .brand-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--amber);
+      box-shadow: 0 0 12px var(--amber);
+    }
+
+    .nav-meta {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 0.72rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold-dim);
+    }
+
+    .container {
+      position: relative;
+      z-index: 2;
+      max-width: 1080px;
+      margin: 32px auto;
+      padding: 0 24px 48px;
+    }
+
+    /* Editorial Hero */
+    .hero-eyebrow {
+      font-size: 0.7rem;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--gold-dim);
+      margin-bottom: 8px;
+    }
+
+    .hero-title {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: clamp(2.4rem, 5vw, 3.8rem);
+      font-weight: 400;
+      line-height: 0.96;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin: 0 0 10px;
+      background: linear-gradient(135deg, #f5e6cc 10%, #d4b483 65%, #c85a17 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-rule {
+      width: 48px;
+      height: 1px;
+      background: var(--gold-dim);
+      margin: 14px 0 24px;
+    }
+
+    /* Glassmorphic Mocha Cards */
+    .card {
+      background: var(--mocha-card);
+      border: 1px solid var(--gold-line);
+      border-radius: 14px;
+      padding: 24px 28px;
+      margin-bottom: 22px;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+    }
+
+    .card-title {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 1.45rem;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin: 0 0 16px;
+      color: var(--gold);
+    }
+
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+
+    input {
+      padding: 11px 16px;
+      border-radius: 999px;
+      border: 1px solid var(--gold-line);
+      background: rgba(20, 14, 10, 0.7);
+      color: var(--gold);
+      font-family: inherit;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus { border-color: var(--gold); }
+    input::placeholder { color: rgba(230, 207, 167, 0.38); }
+
+    /* Pill Buttons */
+    button {
+      padding: 11px 22px;
+      border-radius: 999px;
+      border: 1px solid var(--amber);
+      background: var(--amber);
+      color: #fff8ee;
+      font-family: inherit;
+      font-size: 0.76rem;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    button:hover {
+      background: #dc6720;
+      box-shadow: 0 0 20px var(--amber-glow);
+      transform: translateY(-1px);
+    }
+    button.secondary {
+      background: transparent;
+      border: 1px solid var(--gold-line);
+      color: var(--gold);
+    }
+    button.secondary:hover {
+      border-color: var(--gold);
+      background: rgba(230, 207, 167, 0.08);
+      box-shadow: none;
+    }
+    button.danger {
+      background: transparent;
+      border: 1px solid rgba(184, 59, 43, 0.65);
+      color: #f08a7e;
+    }
+    button.danger:hover {
+      background: var(--danger);
+      color: #fff;
+      box-shadow: none;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: inline-flex;
+      gap: 6px;
+      padding: 5px;
+      border-radius: 999px;
+      background: rgba(20, 14, 10, 0.65);
+      border: 1px solid var(--gold-line);
+      margin-bottom: 24px;
+    }
+    .tab {
+      padding: 9px 20px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 0.74rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--gold-dim);
+      transition: all 0.2s;
+    }
+    .tab.active {
+      background: var(--amber);
+      color: #fff8ee;
+    }
+
+    video {
+      width: 100%;
+      max-height: 480px;
+      background: #120c09;
+      border-radius: 10px;
+      border: 1px solid var(--gold-line);
+    }
+
+    .code-badge {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 1.65rem;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      padding: 6px 18px;
+      background: rgba(20, 14, 10, 0.75);
+      border: 1px solid var(--gold);
+      border-radius: 999px;
+      color: var(--gold);
+    }
+
+    .status {
+      font-size: 0.85rem;
+      color: var(--gold-dim);
+      margin-top: 12px;
+      letter-spacing: 0.03em;
+    }
+
+    .hidden { display: none !important; }
+
+    .list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      border: 1px solid var(--gold-line);
+      border-radius: 10px;
+      margin-top: 10px;
+      background: rgba(20, 14, 10, 0.5);
+    }
+
+    @media (max-width: 640px) {
+      header { padding: 14px 18px; }
+      .container { padding: 0 14px 36px; }
+      .card { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 class="brand"><span class="brand-dot"></span> Vigilix</h1>
+    <div id="userBar" class="nav-meta hidden">
+      <span id="usernameDisplay"></span>
+      <button class="secondary" onclick="logout()">Logout</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Login Card -->
+    <div id="authCard" style="max-width: 460px; margin: 48px auto;">
+      <div class="hero-eyebrow">A Quieter Watch</div>
+      <h2 class="hero-title">Private<br/>Vision</h2>
+      <div class="hero-rule"></div>
+      <div class="card">
+        <div class="card-title">Sign In</div>
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <input id="loginUser" type="text" placeholder="Username" value="admin" />
+          <input id="loginPass" type="password" placeholder="Password" value="87654321" />
+          <button onclick="login()">Enter Vigilix →</button>
+        </div>
+        <div id="authStatus" class="status"></div>
+      </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="appSection" class="hidden">
+      <div class="hero-eyebrow">Live Surveillance</div>
+      <h2 class="hero-title">Control Room</h2>
+      <div class="hero-rule"></div>
+
+      <div class="tabs">
+        <div id="tabViewer" class="tab active" onclick="switchTab('viewer')">Viewer</div>
+        <div id="tabCamera" class="tab" onclick="switchTab('camera')">Camera</div>
+      </div>
+
+      <!-- Viewer Tab -->
+      <div id="viewerPanel">
+        <div class="card">
+          <div class="card-title">Connect a Camera</div>
+          <div class="row">
+            <button onclick="generateCode()">Generate Code</button>
+            <span id="generatedCode" class="code-badge hidden">------</span>
+            <input id="viewerCodeInput" type="text" placeholder="6-digit room code" maxlength="6" />
+            <button class="secondary" onclick="joinAsViewer()">Watch Stream →</button>
+          </div>
+          <div id="viewerStatus" class="status">Generate a code and enter it on your phone's Camera tab.</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Live Feed</div>
+          <video id="remoteVideo" autoplay playsinline controls></video>
+        </div>
+
+        <div class="card">
+          <div class="row" style="justify-content: space-between; margin-bottom: 8px;">
+            <div class="card-title" style="margin: 0;">Saved Cameras</div>
+            <button class="secondary" onclick="loadCameras()">Refresh</button>
+          </div>
+          <div id="camerasList"></div>
+        </div>
+      </div>
+
+      <!-- Camera Tab -->
+      <div id="cameraPanel" class="hidden">
+        <div class="card">
+          <div class="card-title">Stream This Device</div>
+          <div class="row">
+            <input id="cameraCodeInput" type="text" placeholder="Enter 6-digit code" maxlength="6" />
+            <button onclick="startCameraStream()">Start Streaming</button>
+            <button class="secondary" onclick="switchCamera()">Switch Camera</button>
+            <button class="danger" onclick="stopCameraStream()">Stop</button>
+          </div>
+          <div id="cameraStatus" class="status">Enter the 6-digit code from the Viewer tab to begin.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Local Preview</div>
+          <video id="localVideo" autoplay playsinline muted></video>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let token = localStorage.getItem('webwatch_token') || '';
+    let socket = null;
+    let pc = null;
+    let localStream = null;
+    let currentRoom = null;
+    let facingMode = 'environment';
+
+    const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+    if (token) {
+      showApp(localStorage.getItem('webwatch_user') || 'admin');
+    }
+
+    async function login() {
+      const username = document.getElementById('loginUser').value.trim();
+      const password = document.getElementById('loginPass').value;
+      const status = document.getElementById('authStatus');
+      status.textContent = 'Signing in...';
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Login failed');
+        token = data.access_token;
+        localStorage.setItem('webwatch_token', token);
+        localStorage.setItem('webwatch_user', data.user.username);
+        showApp(data.user.username);
+      } catch (err) {
+        status.textContent = '❌ ' + err.message;
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('webwatch_token');
+      localStorage.removeItem('webwatch_user');
+      token = '';
+      location.reload();
+    }
+
+    function showApp(username) {
+      document.getElementById('authCard').classList.add('hidden');
+      document.getElementById('appSection').classList.remove('hidden');
+      document.getElementById('userBar').classList.remove('hidden');
+      document.getElementById('usernameDisplay').textContent = username;
+      loadCameras();
+    }
+
+    function switchTab(tab) {
+      document.getElementById('tabViewer').classList.toggle('active', tab === 'viewer');
+      document.getElementById('tabCamera').classList.toggle('active', tab === 'camera');
+      document.getElementById('viewerPanel').classList.toggle('hidden', tab !== 'viewer');
+      document.getElementById('cameraPanel').classList.toggle('hidden', tab !== 'camera');
+    }
+
+    async function generateCode() {
+      const res = await fetch('/api/code/generate', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await res.json();
+      if (data.code) {
+        const badge = document.getElementById('generatedCode');
+        badge.textContent = data.code;
+        badge.classList.remove('hidden');
+        document.getElementById('viewerCodeInput').value = data.code;
+        joinAsViewer(data.code);
+      }
+    }
+
+    async function loadCameras() {
+      const list = document.getElementById('camerasList');
+      try {
+        const res = await fetch('/api/cameras', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const cameras = await res.json();
+        if (!Array.isArray(cameras) || cameras.length === 0) {
+          list.innerHTML = '<div class="status">No saved cameras yet.</div>';
+          return;
+        }
+        list.innerHTML = cameras.map(c => `
+          <div class="list-item">
+            <div><strong>${c.name}</strong> <span style="color: var(--gold-dim);">(${c.code})</span></div>
+            <button class="secondary" onclick="joinAsViewer('${c.code}')">Connect</button>
+          </div>
+        `).join('');
+      } catch (e) {
+        list.innerHTML = '<div class="status">Failed to load cameras.</div>';
+      }
+    }
+
+    function initSocket() {
+      if (!socket) {
+        socket = io({ transports: ['websocket', 'polling'] });
+      }
+      return socket;
+    }
+
+    function joinAsViewer(codeOverride) {
+      const code = (codeOverride || document.getElementById('viewerCodeInput').value).trim();
+      if (!code) return;
+      currentRoom = code;
+      const s = initSocket();
+      document.getElementById('viewerStatus').textContent = `📡 Waiting for camera in room ${code}...`;
+
+      s.off('offer').on('offer', async (data) => {
+        if (pc) pc.close();
+        pc = new RTCPeerConnection(rtcConfig);
+        pc.ontrack = (event) => {
+          document.getElementById('remoteVideo').srcObject = event.streams[0];
+          document.getElementById('viewerStatus').textContent = `✅ Live stream connected (Room ${code})`;
+        };
+        pc.onicecandidate = (event) => {
+          if (event.candidate) {
+            s.emit('ice-candidate', { room_code: code, candidate: event.candidate });
+          }
+        };
+        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        s.emit('answer', { room_code: code, answer });
+      });
+
+      s.off('ice-candidate').on('ice-candidate', async (data) => {
+        if (pc && data.candidate) {
+          try { await pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch {}
+        }
+      });
+
+      s.emit('join_room', { code, client_type: 'viewer' });
+    }
+
+    async function startCameraStream() {
+      const code = document.getElementById('cameraCodeInput').value.trim();
+      if (!code) return;
+      currentRoom = code;
+      const status = document.getElementById('cameraStatus');
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: facingMode } },
+          audio: true
+        });
+        document.getElementById('localVideo').srcObject = localStream;
+        status.textContent = `📡 Camera ready. Joining room ${code}...`;
+
+        const s = initSocket();
+        s.off('viewer_joined').on('viewer_joined', async () => {
+          await createAndSendOffer(code);
+        });
+        s.off('answer').on('answer', async (data) => {
+          if (pc && data.answer) {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+            status.textContent = `✅ Streaming live to room ${code}!`;
+          }
+        });
+        s.off('ice-candidate').on('ice-candidate', async (data) => {
+          if (pc && data.candidate) {
+            try { await pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch {}
+          }
+        });
+
+        s.emit('join_room', { code, client_type: 'camera' });
+        await createAndSendOffer(code);
+      } catch (err) {
+        status.textContent = '❌ Camera error: ' + err.message;
+      }
+    }
+
+    async function createAndSendOffer(code) {
+      if (pc) pc.close();
+      pc = new RTCPeerConnection(rtcConfig);
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit('ice-candidate', { room_code: code, candidate: event.candidate });
+        }
+      };
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socket.emit('offer', { room_code: code, offer });
+    }
+
+    async function switchCamera() {
+      facingMode = facingMode === 'environment' ? 'user' : 'environment';
+      if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: facingMode } },
+          audio: true
+        });
+        document.getElementById('localVideo').srcObject = localStream;
+        if (pc) {
+          const videoTrack = localStream.getVideoTracks()[0];
+          const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+          if (sender && videoTrack) await sender.replaceTrack(videoTrack);
+        }
+      }
+      document.getElementById('cameraStatus').textContent =
+        `📷 Switched to ${facingMode === 'environment' ? 'rear' : 'front'} camera.`;
+    }
+
+    function stopCameraStream() {
+      if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = null;
+      }
+      if (pc) { pc.close(); pc = null; }
+      document.getElementById('localVideo').srcObject = null;
+      document.getElementById('cameraStatus').textContent = 'Stopped.';
+    }
+  </script>
+</body>
+</html>
